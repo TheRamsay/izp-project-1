@@ -1,6 +1,7 @@
 import enum
 from subprocess import CompletedProcess, run, PIPE
 from typing import List, Tuple
+from unittest.util import strclass
 from xml.dom import NotFoundErr
 
 PASS = "\033[38;5;154m[ OK ]\033[0m"
@@ -17,9 +18,37 @@ BASE_INPUT = [
     ("Petr Dvorak", "603123456"),
     ("Jana Novotna", "777987654"),
     ("Bedrich Smetana ml.", "541141120"),
+    ("xxx+a+xxxxx", "213344"),
+    ("Karel Spacek", "+420213333333")
 ]
 
-NON_CONTIGUOUS_INPUT = [("XAXXXXXXBC", "123144312"), ("XXXXXABDXX", "478698143")]
+TOO_LONG_INPUT_1 = [
+    ("X" * 101, "1"),
+]
+
+TOO_LONG_INPUT_2 = [
+    ("X", "1" * 101),
+]
+
+BLANK_INPUT_1 = [
+    ("", "1"),
+]
+
+BLANK_INPUT_2 = [
+    ("X", ""),
+]
+
+FIRST_BONUS_INPUT = [
+    ("xAxxxxBC", "123044312"), 
+    ("xxxABDxx", "302329817"),
+    ("xxOxxKxxOKxxxxZ", "00114322")
+]
+
+SECOND_BONUS_INPUT = [
+    ("Roman Orsag", "432923843"),
+]
+
+
 
 
 class Tester:
@@ -80,7 +109,7 @@ class Tester:
                 failed = True
                 error_msg += "Program vratil byl uspesne ukoncen, i presto ze nemel\n"
 
-        if not self.assert_equal(str_output, p.stdout):
+        if not self.assert_equal(str_output, p.stdout) and not should_fail:
             failed = True
             error_msg += "Vystup programu se neshoduje s ocekavanym vystupem"
 
@@ -134,7 +163,10 @@ class Tester:
         out = (FOUND_MESSAGE if len(exptected_contacts) else NOT_FOUND_MESSAGE) + "\n"
         for i, (name, number) in enumerate(input_):
             if i + 1 in exptected_contacts:
-                out += f"{name.lower()}, {number.lower()}\n"
+                name_boundary = len(name) if len(name) <= 100 else 100
+                number_boundary = len(number) if len(number) <= 100 else 100
+
+                out += f"{name.lower()[:name_boundary]}, {number.lower()[:number_boundary]}\n"
 
         return out
 
@@ -147,7 +179,7 @@ class Tester:
 
 if __name__ == "__main__":
     first_bonus = True
-    second_bonus = False 
+    second_bonus = True
     t = Tester("t9search", first_bonus)
 
     t.test("Test ze zadani #1", [], BASE_INPUT, [1, 2, 3], bonus_contacts=[])
@@ -155,14 +187,40 @@ if __name__ == "__main__":
     t.test("Test ze zadani #3", ["686"], BASE_INPUT, [2], bonus_contacts=[])
     t.test("Test ze zadani #4", ["38"], BASE_INPUT, [1, 3], bonus_contacts=[])
     t.test("Test ze zadani #5", ["111"], BASE_INPUT, [], bonus_contacts=[3])
+    t.test("Test ze zadani #5", ["111"], BASE_INPUT, [], bonus_contacts=[3])
+
+    t.test("Test standardniho reseni #1", ["020"], BASE_INPUT, [4])
+    t.test("Test standardniho reseni #1", ["0420"], BASE_INPUT, [5])
+
+    t.test("Test na delku radku #1", [], TOO_LONG_INPUT_1, [], should_fail=True)
+    t.test("Test na delku radku #2", [], TOO_LONG_INPUT_2, [], should_fail=True)
+
+    t.test("Test na prazdny radek #1", [], BLANK_INPUT_1, [], should_fail=True)
+    t.test("Test na prazdny radek #2", [], BLANK_INPUT_2, [], should_fail=True)
+
+    t.test("Test argumentu #1", ["tf"], BASE_INPUT, [], should_fail=True)
+    t.test("Test argumentu #2", ["t00f"], BASE_INPUT, [], should_fail=True)
 
     if first_bonus:
-        t.test("Test na prvni rozsireni #1", ["222"], NON_CONTIGUOUS_INPUT, [1])
-        t.test("Test na prvni rozsireni #2", ["111"], NON_CONTIGUOUS_INPUT, [1])
-        t.test("Test na prvni rozsireni #3", ["223"], NON_CONTIGUOUS_INPUT, [2])
-        t.test("Test na prvni rozsireni #4", ["892"], NON_CONTIGUOUS_INPUT, [])
+        t.test("Test na prvni rozsireni #1", ["222"], FIRST_BONUS_INPUT, [1])
+        t.test("Test na prvni rozsireni #2", ["221"], FIRST_BONUS_INPUT, [2])
+        t.test("Test na prvni rozsireni #3", ["223"], FIRST_BONUS_INPUT, [2])
+        t.test("Test na prvni rozsireni #4", ["892"], FIRST_BONUS_INPUT, [])
+        t.test("Test na prvni rozsireni #4", ["659"], FIRST_BONUS_INPUT, [3])
     
     if second_bonus:
-        pass
+        t.test("Test na druhe rozsireni #1", ["62", "-l", "1"], SECOND_BONUS_INPUT, [1])
+        t.test("Test na druhe rozsireni #2", ["602", "-l", "1"], SECOND_BONUS_INPUT, [1])
+        t.test("Test na druhe rozsireni #3", ["6620", "-l", "1"], SECOND_BONUS_INPUT, [1])
+        t.test("Test na druhe rozsireni #4", ["6020", "-l", "1"], SECOND_BONUS_INPUT, [])
+        t.test("Test na druhe rozsireni #5", ["6020", "-l", "2"], SECOND_BONUS_INPUT, [1])
+        t.test("Test na druhe rozsireni #6", ["626", "-l", "1"], SECOND_BONUS_INPUT, [1])
+        t.test("Test na druhe rozsireni #7", ["626", "-l", "1"], SECOND_BONUS_INPUT, [1])
+        t.test("Test na druhe rozsireni #8", ["662", "-l", "0"], SECOND_BONUS_INPUT, [1])
+        t.test("Test na druhe rozsireni #8", ["660", "-l", "0"], SECOND_BONUS_INPUT, [])
+
+        t.test("Test parametru -l #1", ["-l", "tf"], SECOND_BONUS_INPUT, [], should_fail=True)
+        t.test("Test parametru -l #2", ["-l", "t00f"], SECOND_BONUS_INPUT, [], should_fail=True)
+        t.test("Test parametru -l #3", ["-l"], SECOND_BONUS_INPUT, [], should_fail=True)
 
     t.print_stats()
