@@ -1,11 +1,22 @@
-import enum
-from subprocess import CompletedProcess, run, PIPE
-from typing import List, Tuple
-from unittest.util import strclass
-from xml.dom import NotFoundErr
+#
+# Testy pro 1. IZP projekt [2022]
+# Autor: - Ramsay#2303 
+# Inspirace https://github.com/JosefKuchar/izp-projekt-1/blob/main/test.py
+# Priklady pouziti:
+#     python ./test.py t9search
+#     python ./test.py t9search --bonus 2
 
-PASS = "\033[38;5;154m[ OK ]\033[0m"
-FAIL = "\033[38;5;196m[ FAIL ]\033[0m"
+
+import argparse
+from ast import parse
+import json
+from subprocess import CompletedProcess, run, PIPE
+from typing import Dict, List, Tuple
+
+TEST_LOG_FILENAME = "log.json"
+
+PASS = "\033[38;5;154m[OK]\033[0m"
+FAIL = "\033[38;5;196m[FAIL]\033[0m"
 
 BLUE = "\033[38;5;12m"
 BOLD = "\033[1m"
@@ -19,7 +30,7 @@ BASE_INPUT = [
     ("Jana Novotna", "777987654"),
     ("Bedrich Smetana ml.", "541141120"),
     ("xxx+a+xxxxx", "213344"),
-    ("Karel Spacek", "+420213333333")
+    ("Karel Spacek", "+420213333333"),
 ]
 
 TOO_LONG_INPUT_1 = [
@@ -39,16 +50,14 @@ BLANK_INPUT_2 = [
 ]
 
 FIRST_BONUS_INPUT = [
-    ("xAxxxxBC", "123044312"), 
+    ("xAxxxxBC", "123044312"),
     ("xxxABDxx", "302329817"),
-    ("xxOxxKxxOKxxxxZ", "00114322")
+    ("xxOxxKxxOKxxxxZ", "00114322"),
 ]
 
 SECOND_BONUS_INPUT = [
     ("Roman Orsag", "432923843"),
 ]
-
-
 
 
 class Tester:
@@ -57,6 +66,7 @@ class Tester:
         self.test_count = 0
         self.pass_count = 0
         self.first_bonus = first_bonus
+        self.logs: List[Dict] = []
 
     def test(
         self,
@@ -107,13 +117,13 @@ class Tester:
         else:
             if should_fail:
                 failed = True
-                error_msg += "Program vratil byl uspesne ukoncen, i presto ze nemel\n"
+                error_msg += "Program byl uspesne ukoncen, i presto ze nemel byt\n"
 
         if not self.assert_equal(str_output, p.stdout) and not should_fail:
             failed = True
             error_msg += "Vystup programu se neshoduje s ocekavanym vystupem"
 
-        if should_fail and len(p.stderr) == 0: 
+        if should_fail and len(p.stderr) == 0:
             failed = True
             error_msg += "Program nevratil chybovou hlasku na STDERR\n"
 
@@ -131,10 +141,24 @@ class Tester:
             self.pass_count += 1
             self.print_pass(test_name)
 
-    def print_stats(self):
+        data = {
+            "test_name": test_name,
+            "status": "failed" if failed else "ok",
+            "error_message": error_msg,
+            "args": " ".join(args),
+            "exptected_output": str_output,
+            "stdout": p.stdout,
+            "stderr": p.stderr,
+        }
+
+        self.logs.append(data)
+
+    def print_stats(self) -> None:
         success_rate = self.pass_count / self.test_count * 100
         print(
-            self.bold(f"Uspesnost: {success_rate:.2f} % [{self.pass_count} / {self.test_count}]")
+            self.bold(
+                f"Uspesnost: {success_rate:.2f} % [{self.pass_count} / {self.test_count}]"
+            )
         )
 
     def print_fail(self, msg: str) -> None:
@@ -176,17 +200,40 @@ class Tester:
     def bold(self, text: str) -> str:
         return f"{BOLD}{text}{END}"
 
+    def save_logs(self) -> None:
+        with open(TEST_LOG_FILENAME, "w", encoding="utf8") as f:
+            json.dump(self.logs, f, indent=4)
+
 
 if __name__ == "__main__":
-    first_bonus = True
-    second_bonus = True
-    t = Tester("t9search", first_bonus)
+    parser = argparse.ArgumentParser(description="Tester 1. IZP projektu [2022]")
+    parser.add_argument(
+        "prog", metavar="P", type=str, help="Jmeno programu (napriklad: t9search)"
+    )
+    parser.add_argument(
+        "--no-logs",
+        dest="save_logs",
+        action="store_true",
+        help="Vypne ukladani logu do souboru"
+    )
+    parser.add_argument(
+        "-b",
+        "--bonus",
+        dest="bonus",
+        type=int,
+        help="Kontrola bonusoveho zadani. Moznosti jsou 1 nebo 2",
+    )
+
+    args = parser.parse_args()
+
+    bonus_level = args.bonus or 0
+
+    t = Tester(args.prog, bonus_level > 0)
 
     t.test("Test ze zadani #1", [], BASE_INPUT, [1, 2, 3], bonus_contacts=[])
     t.test("Test ze zadani #2", ["12"], BASE_INPUT, [1, 3], bonus_contacts=[])
     t.test("Test ze zadani #3", ["686"], BASE_INPUT, [2], bonus_contacts=[])
     t.test("Test ze zadani #4", ["38"], BASE_INPUT, [1, 3], bonus_contacts=[])
-    t.test("Test ze zadani #5", ["111"], BASE_INPUT, [], bonus_contacts=[3])
     t.test("Test ze zadani #5", ["111"], BASE_INPUT, [], bonus_contacts=[3])
 
     t.test("Test standardniho reseni #1", ["020"], BASE_INPUT, [4])
@@ -201,26 +248,55 @@ if __name__ == "__main__":
     t.test("Test argumentu #1", ["tf"], BASE_INPUT, [], should_fail=True)
     t.test("Test argumentu #2", ["t00f"], BASE_INPUT, [], should_fail=True)
 
-    if first_bonus:
+    if bonus_level >= 1:
         t.test("Test na prvni rozsireni #1", ["222"], FIRST_BONUS_INPUT, [1])
         t.test("Test na prvni rozsireni #2", ["221"], FIRST_BONUS_INPUT, [2])
         t.test("Test na prvni rozsireni #3", ["223"], FIRST_BONUS_INPUT, [2])
         t.test("Test na prvni rozsireni #4", ["892"], FIRST_BONUS_INPUT, [])
         t.test("Test na prvni rozsireni #4", ["659"], FIRST_BONUS_INPUT, [3])
-    
-    if second_bonus:
+
+    if bonus_level == 2:
         t.test("Test na druhe rozsireni #1", ["62", "-l", "1"], SECOND_BONUS_INPUT, [1])
-        t.test("Test na druhe rozsireni #2", ["602", "-l", "1"], SECOND_BONUS_INPUT, [1])
-        t.test("Test na druhe rozsireni #3", ["6620", "-l", "1"], SECOND_BONUS_INPUT, [1])
-        t.test("Test na druhe rozsireni #4", ["6020", "-l", "1"], SECOND_BONUS_INPUT, [])
-        t.test("Test na druhe rozsireni #5", ["6020", "-l", "2"], SECOND_BONUS_INPUT, [1])
-        t.test("Test na druhe rozsireni #6", ["626", "-l", "1"], SECOND_BONUS_INPUT, [1])
-        t.test("Test na druhe rozsireni #7", ["626", "-l", "1"], SECOND_BONUS_INPUT, [1])
-        t.test("Test na druhe rozsireni #8", ["662", "-l", "0"], SECOND_BONUS_INPUT, [1])
+        t.test(
+            "Test na druhe rozsireni #2", ["602", "-l", "1"], SECOND_BONUS_INPUT, [1]
+        )
+        t.test(
+            "Test na druhe rozsireni #3", ["6620", "-l", "1"], SECOND_BONUS_INPUT, [1]
+        )
+        t.test(
+            "Test na druhe rozsireni #4", ["6020", "-l", "1"], SECOND_BONUS_INPUT, []
+        )
+        t.test(
+            "Test na druhe rozsireni #5", ["6020", "-l", "2"], SECOND_BONUS_INPUT, [1]
+        )
+        t.test(
+            "Test na druhe rozsireni #6", ["626", "-l", "1"], SECOND_BONUS_INPUT, [1]
+        )
+        t.test(
+            "Test na druhe rozsireni #7", ["626", "-l", "1"], SECOND_BONUS_INPUT, [1]
+        )
+        t.test(
+            "Test na druhe rozsireni #8", ["662", "-l", "0"], SECOND_BONUS_INPUT, [1]
+        )
         t.test("Test na druhe rozsireni #8", ["660", "-l", "0"], SECOND_BONUS_INPUT, [])
 
-        t.test("Test parametru -l #1", ["-l", "tf"], SECOND_BONUS_INPUT, [], should_fail=True)
-        t.test("Test parametru -l #2", ["-l", "t00f"], SECOND_BONUS_INPUT, [], should_fail=True)
+        t.test(
+            "Test parametru -l #1",
+            ["-l", "tf"],
+            SECOND_BONUS_INPUT,
+            [],
+            should_fail=True,
+        )
+        t.test(
+            "Test parametru -l #2",
+            ["-l", "t00f"],
+            SECOND_BONUS_INPUT,
+            [],
+            should_fail=True,
+        )
         t.test("Test parametru -l #3", ["-l"], SECOND_BONUS_INPUT, [], should_fail=True)
+
+    if args.save_logs:
+        t.save_logs()
 
     t.print_stats()
