@@ -10,6 +10,8 @@ __pycache__/
 .Python
 build/
 develop-eggs/
+.idea/
+.vscode/
 dist/
 downloads/
 eggs/
@@ -212,3 +214,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+seznam.txt
+log.json
+t9search
