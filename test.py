@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #
 # Testy pro 1. IZP projekt [2022]
 # Autor: - Ramsay#2303 
