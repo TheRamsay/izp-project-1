@@ -10,10 +10,16 @@
 
 import argparse
 from ast import parse
+from asyncio import subprocess
+from distutils.log import error
 import json
+from re import I
+from signal import SIGSEGV
 from subprocess import CompletedProcess, run, PIPE
 from tabnanny import check
 from typing import Dict, List, Tuple
+
+from black import check_stability_and_equivalence
 
 TEST_LOG_FILENAME = "log.json"
 
@@ -51,7 +57,9 @@ BLANK_INPUT_2 = [
     ("X", ""),
 ]
 
-MAX_CONTACTS_INPUT = [("Franta Orsag", "25235453") for _ in range(42)]
+MAX_CONTACTS_INPUT_1 = [("Franta Orsag", "25235453") for _ in range(42)]
+
+MAX_CONTACTS_INPUT_2 = [("Franta Orsag", "25235453") for _ in range(50)]
 
 FIRST_BONUS_INPUT = [
     ("xAxxxxBC", "123044312"),
@@ -79,6 +87,7 @@ class Tester:
         input_: List[Tuple[str, str]],
         expected_contacts: List[int],
         should_fail: bool = False,
+        check_crash: bool = False,
         bonus_contacts: List[int] = None,
     ):
         self.test_count += 1
@@ -114,7 +123,10 @@ class Tester:
             exit(1)
 
         if p.returncode != 0:
-            if not should_fail:
+            if p.returncode == -SIGSEGV and check_crash:
+                failed = True
+                error_msg += f"Program neocekavane spadl s navratovym kodem {p.returncode}. Pravdepodobne sahas do pameti ktera neni tvoje\n"
+            elif not should_fail and not check_crash:
                 failed = True
                 error_msg += f"Program vratil chybovy navratovy kod {p.returncode} prestoze nemel\n"
 
@@ -123,7 +135,11 @@ class Tester:
                 failed = True
                 error_msg += "Program byl uspesne ukoncen, i presto ze nemel byt\n"
 
-        if not self.assert_equal(str_output, p.stdout) and not should_fail:
+        if (
+            not self.assert_equal(str_output, p.stdout)
+            and not should_fail
+            and not check_crash
+        ):
             failed = True
             error_msg += "Vystup programu se neshoduje s ocekavanym vystupem"
 
@@ -172,15 +188,12 @@ class Tester:
         print(PASS, msg)
 
     def assert_equal(self, output: str, expected_output: str) -> bool:
-        lines = [line.lower() for line in expected_output.rstrip().split("\n")]
-        checked = [0] * len(lines)
+        lines = {line.lower() for line in expected_output.rstrip().split("\n")}
 
         for line in output.rstrip().split("\n"):
             line = line.lower()
 
-            if res := [i for i, l in enumerate(lines) if not checked[i] and l == line]:
-                checked[res[0]] = True
-            else:
+            if line not in lines:
                 return False
 
         return True
@@ -237,10 +250,10 @@ if __name__ == "__main__":
 
     t = Tester(args.prog, bonus_level > 0)
 
-    t.test("Test ze zadani #1", [], BASE_INPUT, [1, 2, 3], bonus_contacts=[])
-    t.test("Test ze zadani #2", ["12"], BASE_INPUT, [1, 3], bonus_contacts=[])
-    t.test("Test ze zadani #3", ["686"], BASE_INPUT, [2], bonus_contacts=[])
-    t.test("Test ze zadani #4", ["38"], BASE_INPUT, [1, 3], bonus_contacts=[])
+    t.test("Test ze zadani #1", [], BASE_INPUT, [1, 2, 3])
+    t.test("Test ze zadani #2", ["12"], BASE_INPUT, [1, 3])
+    t.test("Test ze zadani #3", ["686"], BASE_INPUT, [2])
+    t.test("Test ze zadani #4", ["38"], BASE_INPUT, [1, 3])
     t.test("Test ze zadani #5", ["111"], BASE_INPUT, [], bonus_contacts=[3])
 
     t.test("Test standardniho reseni #1", ["020"], BASE_INPUT, [4])
@@ -249,15 +262,23 @@ if __name__ == "__main__":
     t.test(
         "Test maximalniho poctu kontaktu #1",
         [""],
-        MAX_CONTACTS_INPUT,
+        MAX_CONTACTS_INPUT_1,
         [i for i in range(1, 43)],
     )
+    t.test(
+        "Test maximalniho poctu kontaktu #2",
+        [""],
+        MAX_CONTACTS_INPUT_2,
+        [],
+        check_crash=True,
+    )
 
-    t.test("Test na delku radku #1", [], TOO_LONG_INPUT_1, [], should_fail=True)
-    t.test("Test na delku radku #2", [], TOO_LONG_INPUT_2, [], should_fail=True)
+    t.test("Test na delku radku #1", [], TOO_LONG_INPUT_1, [], check_crash=True)
+    t.test("Test na delku radku #2", [], TOO_LONG_INPUT_2, [], check_crash=True)
 
-    t.test("Test na prazdny radek #1", [], BLANK_INPUT_1, [], should_fail=True)
-    t.test("Test na prazdny radek #2", [], BLANK_INPUT_2, [], should_fail=True)
+    # TODO
+    # t.test("Test na prazdny radek #1", [], BLANK_INPUT_1, [])
+    # t.test("Test na prazdny radek #2", [], BLANK_INPUT_2, [])
 
     t.test("Test argumentu #1", ["tf"], BASE_INPUT, [], should_fail=True)
     t.test("Test argumentu #2", ["t00f"], BASE_INPUT, [], should_fail=True)

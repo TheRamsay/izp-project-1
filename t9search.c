@@ -139,7 +139,6 @@ void process_contacts(char *pattern, ProcessingResult *result, int contiguous, i
                 result->arr[result->length++] = contact;
         }
     }
-
     return;
 }
 
