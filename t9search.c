@@ -5,7 +5,7 @@
 #include <errno.h>
 
 #define LINE_SIZE 102
-#define MAX_CONTACTS 42
+#define MAX_CONTACTS 423
 #define ERROR_MESSAGE_SIZE 100
 #define CONTIGUOUS_SEARCH 0
 #define NOT_FOUND_MESSAGE "Not found"
@@ -18,6 +18,12 @@ typedef struct Contact
     char name[LINE_SIZE];
     char phone_number[LINE_SIZE];
 } Contact;
+
+typedef struct ProcessingResult {
+    int exit_code;
+    size_t length;
+    Contact arr[MAX_CONTACTS];
+} ProcessingResult;
 
 typedef struct Arguments
 {
@@ -41,6 +47,8 @@ char *NUMBERS_TRANSLATION[] = {
 
 size_t get_lev_distance(char *str1, char *str2);
 int is_substring(char *str, char *substr, int contiguous, int error_threshold);
+void generate_substrings(char *sequence, int seq_idx, char buf[], char output[][LINE_SIZE]);
+int match_string(char *str, char combinations[][LINE_SIZE], int contiguous, int error_threshold);
 
 void to_lower(char *str) {
     char *str_ptr = str;
@@ -85,31 +93,54 @@ int min(int a, int b, int c) {
 /*
     Loads contacts from stdin to contacts array
 */
-int process_contacts(Contact arr[]) {
+void process_contacts(char *pattern, ProcessingResult *result, int contiguous, int error_threshold) {
     char name_buf[LINE_SIZE];
     char phone_buf[LINE_SIZE];
+    char helper_buf[LINE_SIZE] = {0};
+    char combinations[1000][LINE_SIZE] = {0};
+
+    result->exit_code = EXIT_SUCCESS;
+    result->length = 0;
+
+    Contact arr[MAX_CONTACTS] = { 0 };
+    memcpy(result->arr, arr, MAX_CONTACTS);
+
+    generate_substrings(pattern, 0, helper_buf, combinations);
 
     for (int i = 0; i < MAX_CONTACTS; i++) {
-        Contact contact = {0};
+        Contact contact = { "\0", "\0" };
 
-        int result1 = parse_line(name_buf);
-        int result2 = parse_line(phone_buf);
+        int x;
 
-        if (result1 == EXIT_FAILURE || result2 == EXIT_FAILURE) {
-            return EXIT_FAILURE;
+        if ((x = parse_line(name_buf)) != EXIT_SUCCESS) {
+            if (x == EXIT_FAILURE) {
+                result->exit_code = EXIT_FAILURE;
+            }
+
+            return;
         }
 
-        if (result1 == EOF || result2 == EOF) {
-            return EXIT_SUCCESS;
-        }
-        
-        strcpy(contact.name, name_buf);
-        strcpy(contact.phone_number, phone_buf);
+        if ((x = parse_line(phone_buf)) != EXIT_SUCCESS) {
+            if (x == EXIT_FAILURE) {
+                result->exit_code = EXIT_FAILURE;
+            }
 
-        arr[i] = contact;
+            return;
+        }
+
+        if (
+            *pattern == '\0' ||
+            match_string(name_buf, combinations, contiguous, error_threshold) || 
+            match_string(phone_buf, combinations, contiguous, error_threshold)
+            ) {
+                strcpy(contact.name, name_buf);
+                strcpy(contact.phone_number, phone_buf);
+
+                result->arr[result->length++] = contact;
+        }
     }
 
-    return EXIT_SUCCESS;
+    return;
 }
 
 void generate_substrings(char *sequence, int seq_idx, char buf[], char output[][LINE_SIZE]) {
@@ -145,40 +176,10 @@ int match_string(char *str, char combinations[][LINE_SIZE], int contiguous, int 
     return 0;
 }
 
-size_t find_contacts(char *pattern, Contact input[], Contact output[], int contiguous, int error_threshold) {
-    size_t idx = 0;
-
-    char buffer[LINE_SIZE] = {0};
-    char combinations[1000][LINE_SIZE] = {0};
-
-    generate_substrings(pattern, 0, buffer, combinations);
-
-    for (size_t i = 0; i < MAX_CONTACTS; i++)
+void print_result(ProcessingResult *result) {
+    for (size_t i = 0; i < result->length; i++)
     {
-        if (strcmp(input[i].name, "\0") == 0) {
-            break;
-        }
-
-        if (
-            match_string(input[i].name, combinations, contiguous, error_threshold) || 
-            match_string(input[i].phone_number, combinations, contiguous, error_threshold)
-            ) {
-                output[idx++] = input[i];
-        }
-
-    }
-    
-    return idx;
-}
-
-void print_contacts(Contact arr[]) {
-    for (size_t i = 0; i < MAX_CONTACTS; i++)
-    {
-        if (strcmp(arr[i].name, "\0") == 0) {
-            return;
-        }
-
-        printf("%s, %s\n", arr[i].name, arr[i].phone_number);
+        printf("%s, %s\n", result->arr[i].name, result->arr[i].phone_number);
     }
 }
 
@@ -314,31 +315,26 @@ int parse_arguments(char *argv[], size_t n, Arguments *arguments) {
 }
 
 int main(int argc, char *argv[]) {
-    (void) argc;
-    (void) argv;
-
-    Contact contacts[MAX_CONTACTS] = { 0 };
-    Contact results[MAX_CONTACTS] = { 0 };
     Arguments arguments;
+    ProcessingResult result;
 
     if (parse_arguments(argv, argc, &arguments) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
 
-    if (process_contacts(contacts) == EXIT_FAILURE) {
+    process_contacts(arguments.pattern, &result, CONTIGUOUS_SEARCH, arguments.error_threshold);
+    if (result.exit_code == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
 
-    size_t n = find_contacts(arguments.pattern, contacts, results, CONTIGUOUS_SEARCH, arguments.error_threshold);
-
-    if (n == 0) {
+    if (result.length == 0) {
         printf("%s\n", NOT_FOUND_MESSAGE);
         return EXIT_SUCCESS;
     } else  {
         printf("%s\n", FOUND_MESSAGE);
     }
 
-    print_contacts(results);
+    print_result(&result);
 
     return EXIT_SUCCESS;
 }
