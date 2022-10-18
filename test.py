@@ -4,14 +4,15 @@
 # Autor: - Ramsay#2303 
 # Inspirace https://github.com/JosefKuchar/izp-projekt-1/blob/main/test.py
 # Priklady pouziti:
-#     python ./test.py t9search
-#     python ./test.py t9search --bonus 2
+#     python3 ./test.py t9search
+#     python3 ./test.py t9search --bonus 2
 
 
 import argparse
 from ast import parse
 import json
 from subprocess import CompletedProcess, run, PIPE
+from tabnanny import check
 from typing import Dict, List, Tuple
 
 TEST_LOG_FILENAME = "log.json"
@@ -48,6 +49,10 @@ BLANK_INPUT_1 = [
 
 BLANK_INPUT_2 = [
     ("X", ""),
+]
+
+MAX_CONTACTS_INPUT = [
+    ("Franta Orsag", "25235453") for _ in range(42)
 ]
 
 FIRST_BONUS_INPUT = [
@@ -169,12 +174,15 @@ class Tester:
         print(PASS, msg)
 
     def assert_equal(self, output: str, expected_output: str) -> bool:
-        lines = {line.lower() for line in expected_output.rstrip().split("\n")}
+        lines = [line.lower() for line in expected_output.rstrip().split("\n")]
+        checked = [0] * len(lines)
 
         for line in output.rstrip().split("\n"):
             line = line.lower()
 
-            if line not in lines:
+            if res := [i for i, l in enumerate(lines) if not checked[i] and l == line]:
+                checked[res[0]] = True
+            else:
                 return False
 
         return True
@@ -238,7 +246,9 @@ if __name__ == "__main__":
     t.test("Test ze zadani #5", ["111"], BASE_INPUT, [], bonus_contacts=[3])
 
     t.test("Test standardniho reseni #1", ["020"], BASE_INPUT, [4])
-    t.test("Test standardniho reseni #1", ["0420"], BASE_INPUT, [5])
+    t.test("Test standardniho reseni #2", ["0420"], BASE_INPUT, [5])
+
+    t.test("Test maximalniho poctu kontaktu #1", [""], MAX_CONTACTS_INPUT, [i for i in range(1, 43)])
 
     t.test("Test na delku radku #1", [], TOO_LONG_INPUT_1, [], should_fail=True)
     t.test("Test na delku radku #2", [], TOO_LONG_INPUT_2, [], should_fail=True)

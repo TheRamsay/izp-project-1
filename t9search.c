@@ -5,7 +5,7 @@
 #include <errno.h>
 
 #define LINE_SIZE 102
-#define MAX_CONTACTS 423
+#define MAX_CONTACTS 42
 #define ERROR_MESSAGE_SIZE 100
 #define CONTIGUOUS_SEARCH 0
 #define NOT_FOUND_MESSAGE "Not found"
