@@ -13,8 +13,7 @@
 
 int out_i = 0 ;
 
-typedef struct Contact
-{
+typedef struct Contact {
     char name[LINE_SIZE];
     char phone_number[LINE_SIZE];
 } Contact;
@@ -46,8 +45,7 @@ char *NUMBERS_TRANSLATION[] = {
 };
 
 size_t get_lev_distance(char *str1, char *str2);
-int is_substring(char *str, char *substr, int contiguous, int error_threshold);
-void generate_substrings(char *sequence, int seq_idx, char buf[], char output[][LINE_SIZE]);
+int match_contact(char *str, char *substr, int contiguous, int error_threshold);
 int match_string(char *str, char combinations[][LINE_SIZE], int contiguous, int error_threshold);
 
 void to_lower(char *str) {
@@ -96,8 +94,6 @@ int min(int a, int b, int c) {
 void process_contacts(char *pattern, ProcessingResult *result, int contiguous, int error_threshold) {
     char name_buf[LINE_SIZE];
     char phone_buf[LINE_SIZE];
-    char helper_buf[LINE_SIZE] = {0};
-    char combinations[1000][LINE_SIZE] = {0};
 
     result->exit_code = EXIT_SUCCESS;
     result->length = 0;
@@ -105,23 +101,19 @@ void process_contacts(char *pattern, ProcessingResult *result, int contiguous, i
     Contact arr[MAX_CONTACTS] = { 0 };
     memcpy(result->arr, arr, MAX_CONTACTS);
 
-    generate_substrings(pattern, 0, helper_buf, combinations);
-
     for (int i = 0; i < MAX_CONTACTS; i++) {
-        Contact contact = { "\0", "\0" };
+        int status;
 
-        int x;
-
-        if ((x = parse_line(name_buf)) != EXIT_SUCCESS) {
-            if (x == EXIT_FAILURE) {
+        if ((status = parse_line(name_buf)) != EXIT_SUCCESS) {
+            if (status == EXIT_FAILURE) {
                 result->exit_code = EXIT_FAILURE;
             }
 
             return;
         }
 
-        if ((x = parse_line(phone_buf)) != EXIT_SUCCESS) {
-            if (x == EXIT_FAILURE) {
+        if ((status = parse_line(phone_buf)) != EXIT_SUCCESS) {
+            if (status == EXIT_FAILURE) {
                 result->exit_code = EXIT_FAILURE;
             }
 
@@ -130,9 +122,11 @@ void process_contacts(char *pattern, ProcessingResult *result, int contiguous, i
 
         if (
             *pattern == '\0' ||
-            match_string(name_buf, combinations, contiguous, error_threshold) || 
-            match_string(phone_buf, combinations, contiguous, error_threshold)
+            match_contact(pattern, name_buf, contiguous, error_threshold) || 
+            match_contact(pattern, phone_buf, contiguous, error_threshold)
             ) {
+                Contact contact;
+
                 strcpy(contact.name, name_buf);
                 strcpy(contact.phone_number, phone_buf);
 
@@ -142,39 +136,6 @@ void process_contacts(char *pattern, ProcessingResult *result, int contiguous, i
     return;
 }
 
-void generate_substrings(char *sequence, int seq_idx, char buf[], char output[][LINE_SIZE]) {
-    if (sequence[seq_idx] == '\0') {
-        strcpy(output[out_i++], buf);
-        return;
-    }
-
-    int digit = sequence[seq_idx] - '0';
-    char *available_chars = NUMBERS_TRANSLATION[digit];
-
-    for (size_t i = 0; available_chars[i] != '\0'; i++)
-    {
-        buf[seq_idx] = available_chars[i];
-        generate_substrings(sequence, seq_idx + 1, buf, output);
-        buf[seq_idx] = '\0';
-    }
-    
-}
-
-int match_string(char *str, char combinations[][LINE_SIZE], int contiguous, int error_threshold) {
-    for (size_t i = 0; i < 1000; i++)
-    {
-        if (strcmp(combinations[i], "\0") == 0) {
-            return 0;
-        }
-
-        if (is_substring(str, combinations[i], contiguous, error_threshold)) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
 void print_result(ProcessingResult *result) {
     for (size_t i = 0; i < result->length; i++)
     {
@@ -182,34 +143,81 @@ void print_result(ProcessingResult *result) {
     }
 }
 
-int is_substring(char *str, char *substr, int contiguous, int error_threshold) {
-    if (*substr == '\0') {
+char *get_possible_chars(char char_digit) {
+    int digit = char_digit - '0';
+    return NUMBERS_TRANSLATION[digit];
+}
+
+int is_substring(char *str, char *substring) {
+    for (size_t i = 0; str[i] != '\0'; i++)
+    {
+        if (strchr(get_possible_chars(substring[0]), str[i])) {
+            int found = 1;
+
+            for (size_t j = 1; substring[j] != '\0'; j++)
+            {
+                if (!strchr(get_possible_chars(substring[j]), str[j + i])) {
+                    found = 0;
+                    break;
+                }
+            }
+
+            if (found) {
+                return 1;
+            }
+            
+        }
+    }
+    
+    return 0;
+}
+
+void str_to_number(char *str, char *output) {
+    for (size_t i = 0; str[i] != '\0'; i++)
+    {
+        if (str[i] == '+') {
+            output[i] = '0';
+        } else if (str[i] == 'z') {
+            output[i] = '9';
+        } else if (isdigit(str[i])) {
+            output[i] = str[i];
+        } else if (isalpha(str[i])) {
+            // Gets position in alphabet, divide by 3 to get groups for 3 chars, added 2 because 'a' is 2 and converting to char
+            output[i] = ((((int)str[i]) - 97) / 3) + 2 + '0';
+        } else {
+            output[i] = '-';
+        }
+    }
+}
+
+int is_non_contiguous_substring(char *str, char *substring) {
+    int i = 0, j = 0;
+
+    while (str[i] != '\0' && substring[j] != '\0')
+    {
+        if (strchr(get_possible_chars(substring[j]), str[i])) {
+            j++;
+        }
+
+        i++;
+    }
+
+    return substring[j] == '\0';
+}
+
+int match_contact(char *pattern, char *contact_field, int contiguous, int error_threshold) {
+    if (*pattern == '\0') {
         return 1;
     }
-
-    if (error_threshold == -1) {
-
-        if (contiguous) {
-            return strstr(str, substr) != NULL;
-        }
-
-        size_t substr_idx = 0;
-
-        for (size_t i = 0; str[i] != '\0'; i++)
-        {
-            if (substr_idx < strlen(substr) && str[i] == substr[substr_idx]) {
-                substr_idx++;
-            }
-        }
-
-        return substr_idx == strlen(substr);
+    
+    if (error_threshold != -1) {
+        int lev_distance = get_lev_distance(contact_field, pattern);
+        
+        // Substracting lengths difference of two strings from edit distance, because we dont want to count that in
+        return error_threshold >= lev_distance - (int)(strlen(contact_field) - strlen(pattern));
     }
-    
 
-    int lev_distance = get_lev_distance(substr, str);
-    
-    // Substracting lengths difference of two strings from edit distance, because we dont want to count that in
-    return error_threshold >= lev_distance - (int)(strlen(str) - strlen(substr));
+    return contiguous ? is_substring(contact_field, pattern) : is_non_contiguous_substring(contact_field, pattern);
 }
 
 // Calculates edit distance of two strings 
@@ -235,6 +243,7 @@ size_t get_lev_distance(char *str1, char *str2) {
         for (size_t j = 1; j < n; j++)
         {
             // If position in str1 and str2 has same characters, then we add value of previous result
+            // strchr(get_possible_chars(substring[j]), )
             if (str1[i - 1] == str2[j - 1]) {
                 matrix[i][j] = matrix[i - 1][j - 1];
             } else {
@@ -314,26 +323,49 @@ int parse_arguments(char *argv[], size_t n, Arguments *arguments) {
 }
 
 int main(int argc, char *argv[]) {
-    Arguments arguments;
-    ProcessingResult result;
+    (void)argc;
+    (void)argv;
+    // Arguments arguments;
 
-    if (parse_arguments(argv, argc, &arguments) == EXIT_FAILURE) {
-        return EXIT_FAILURE;
-    }
+    // ProcessingResult result;
 
-    process_contacts(arguments.pattern, &result, CONTIGUOUS_SEARCH, arguments.error_threshold);
-    if (result.exit_code == EXIT_FAILURE) {
-        return EXIT_FAILURE;
-    }
+    // if (parse_arguments(argv, argc, &arguments) == EXIT_FAILURE) {
+    //     return EXIT_FAILURE;
+    // }
 
-    if (result.length == 0) {
-        printf("%s\n", NOT_FOUND_MESSAGE);
-        return EXIT_SUCCESS;
-    } else  {
-        printf("%s\n", FOUND_MESSAGE);
-    }
+    // process_contacts(arguments.pattern, &result, CONTIGUOUS_SEARCH, arguments.error_threshold);
+    // if (result.exit_code == EXIT_FAILURE) {
+    //     return EXIT_FAILURE;
+    // }
 
-    print_result(&result);
+    // if (result.length == 0) {
+    //     printf("%s\n", NOT_FOUND_MESSAGE);
+    //     return EXIT_SUCCESS;
+    // } else  {
+    //     printf("%s\n", FOUND_MESSAGE);
+    // }
+
+    // print_result(&result);
+
+    // return EXIT_SUCCESS;
+
+    // TODO prvni a ctvrty test na druhe rozsireni bad
+    // TODO checknout jak realne funguje process contact s eofem
+
+    char *x = "fewwef";
+    printf("%s\n",x);
+    x = "rrwrewr";
+    printf("%s\n",x);
+    (void)x;
+
+}
+
+
+int main(int argc, char *argv[]) {
+    int x = 10;
+
+    printf("Hello world \n");
 
     return EXIT_SUCCESS;
 }
+

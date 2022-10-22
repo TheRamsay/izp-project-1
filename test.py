@@ -57,6 +57,7 @@ BLANK_INPUT_2 = [
     ("X", ""),
 ]
 
+# Zmenit kazdy radek aspon nejak
 MAX_CONTACTS_INPUT_1 = [("Franta Orsag", "25235453") for _ in range(42)]
 
 MAX_CONTACTS_INPUT_2 = [("Franta Orsag", "25235453") for _ in range(50)]
