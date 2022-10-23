@@ -49,7 +49,6 @@ BLANK_INPUT_2 = [
     ("X", ""),
 ]
 
-# Zmenit kazdy radek aspon nejak
 MAX_CONTACTS_INPUT_1 = [(f"aa{i}aa", "25235453") for i in range(42)]
 
 MAX_CONTACTS_INPUT_2 = [(f"aa{i}aa", "25235453") for i in range(50)]
@@ -80,7 +79,7 @@ class Tester:
         input_: List[Tuple[str, str]],
         expected_contacts: List[int],
         should_fail: bool = False,
-        check_crash: bool = False
+        check_crash: bool = False,
     ):
         self.test_count += 1
         failed = False
@@ -191,7 +190,7 @@ class Tester:
     def create_output(
         self, input_: List[Tuple[str, str]], exptected_contacts: List[int]
     ) -> str:
-        out = ("" if len(exptected_contacts) else NOT_FOUND_MESSAGE)
+        out = "" if len(exptected_contacts) else NOT_FOUND_MESSAGE
         for i, (name, number) in enumerate(input_):
             if i + 1 in exptected_contacts:
                 name_boundary = len(name) if len(name) <= 100 else 100
@@ -269,6 +268,7 @@ if __name__ == "__main__":
 
     t.test("Test argumentu #1", ["tf"], BASE_INPUT, [], should_fail=True)
     t.test("Test argumentu #2", ["t00f"], BASE_INPUT, [], should_fail=True)
+    t.test("Test argumentu #3", ["1231", "ff", "pp"], BASE_INPUT, [], should_fail=True)
 
     if bonus_level >= 1:
         t.test("Test na prvni rozsireni #1", ["-s", "222"], FIRST_BONUS_INPUT, [1])
@@ -276,6 +276,14 @@ if __name__ == "__main__":
         t.test("Test na prvni rozsireni #3", ["-s", "223"], FIRST_BONUS_INPUT, [2])
         t.test("Test na prvni rozsireni #4", ["-s", "892"], FIRST_BONUS_INPUT, [])
         t.test("Test na prvni rozsireni #5", ["-s", "659"], FIRST_BONUS_INPUT, [3])
+
+        t.test(
+            "Test parametru -s #1",
+            ["892", "-s"],
+            FIRST_BONUS_INPUT,
+            [],
+            should_fail=True,
+        )
 
     if bonus_level == 2:
         t.test("Test na druhe rozsireni #1", ["62", "-l", "1"], SECOND_BONUS_INPUT, [1])
@@ -300,7 +308,7 @@ if __name__ == "__main__":
         t.test(
             "Test na druhe rozsireni #8", ["662", "-l", "0"], SECOND_BONUS_INPUT, [1]
         )
-        t.test("Test na druhe rozsireni #8", ["660", "-l", "0"], SECOND_BONUS_INPUT, [])
+        t.test("Test na druhe rozsireni #9", ["660", "-l", "0"], SECOND_BONUS_INPUT, [])
 
         t.test(
             "Test parametru -l #1",
@@ -317,6 +325,7 @@ if __name__ == "__main__":
             should_fail=True,
         )
         t.test("Test parametru -l #3", ["-l"], SECOND_BONUS_INPUT, [], should_fail=True)
+        t.test("Test parametru -l #4", ["-l", "0", "662"], SECOND_BONUS_INPUT, [1])
 
     if args.save_logs:
         t.save_logs()
