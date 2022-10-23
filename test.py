@@ -9,17 +9,10 @@
 
 
 import argparse
-from ast import parse
-from asyncio import subprocess
-from distutils.log import error
 import json
-from re import I
 from signal import SIGSEGV
 from subprocess import CompletedProcess, run, PIPE
-from tabnanny import check
 from typing import Dict, List, Tuple
-
-from black import check_stability_and_equivalence
 
 TEST_LOG_FILENAME = "log.json"
 
@@ -30,8 +23,7 @@ BLUE = "\033[38;5;12m"
 BOLD = "\033[1m"
 END = "\033[0m"
 
-NOT_FOUND_MESSAGE = "Not found"
-FOUND_MESSAGE = "Kontakt(y) nalezen(y)"
+NOT_FOUND_MESSAGE = "Not found\n"
 
 BASE_INPUT = [
     ("Petr Dvorak", "603123456"),
@@ -58,9 +50,9 @@ BLANK_INPUT_2 = [
 ]
 
 # Zmenit kazdy radek aspon nejak
-MAX_CONTACTS_INPUT_1 = [("Franta Orsag", "25235453") for _ in range(42)]
+MAX_CONTACTS_INPUT_1 = [(f"aa{i}aa", "25235453") for i in range(42)]
 
-MAX_CONTACTS_INPUT_2 = [("Franta Orsag", "25235453") for _ in range(50)]
+MAX_CONTACTS_INPUT_2 = [(f"aa{i}aa", "25235453") for i in range(50)]
 
 FIRST_BONUS_INPUT = [
     ("xAxxxxBC", "123044312"),
@@ -88,20 +80,14 @@ class Tester:
         input_: List[Tuple[str, str]],
         expected_contacts: List[int],
         should_fail: bool = False,
-        check_crash: bool = False,
-        bonus_contacts: List[int] = None,
+        check_crash: bool = False
     ):
         self.test_count += 1
         failed = False
         error_msg: str = ""
 
         str_input = self.create_input(input_)
-        if self.first_bonus and bonus_contacts is not None:
-            str_output = self.create_output(
-                input_, list(set(expected_contacts + bonus_contacts))
-            )
-        else:
-            str_output = self.create_output(input_, expected_contacts)
+        str_output = self.create_output(input_, expected_contacts)
 
         p: CompletedProcess[str]
 
@@ -205,7 +191,7 @@ class Tester:
     def create_output(
         self, input_: List[Tuple[str, str]], exptected_contacts: List[int]
     ) -> str:
-        out = (FOUND_MESSAGE if len(exptected_contacts) else NOT_FOUND_MESSAGE) + "\n"
+        out = ("" if len(exptected_contacts) else NOT_FOUND_MESSAGE)
         for i, (name, number) in enumerate(input_):
             if i + 1 in exptected_contacts:
                 name_boundary = len(name) if len(name) <= 100 else 100
@@ -255,7 +241,7 @@ if __name__ == "__main__":
     t.test("Test ze zadani #2", ["12"], BASE_INPUT, [1, 3])
     t.test("Test ze zadani #3", ["686"], BASE_INPUT, [2])
     t.test("Test ze zadani #4", ["38"], BASE_INPUT, [1, 3])
-    t.test("Test ze zadani #5", ["111"], BASE_INPUT, [], bonus_contacts=[3])
+    t.test("Test ze zadani #5", ["111"], BASE_INPUT, [])
 
     t.test("Test standardniho reseni #1", ["020"], BASE_INPUT, [4])
     t.test("Test standardniho reseni #2", ["0420"], BASE_INPUT, [5])
@@ -285,11 +271,11 @@ if __name__ == "__main__":
     t.test("Test argumentu #2", ["t00f"], BASE_INPUT, [], should_fail=True)
 
     if bonus_level >= 1:
-        t.test("Test na prvni rozsireni #1", ["222"], FIRST_BONUS_INPUT, [1])
-        t.test("Test na prvni rozsireni #2", ["221"], FIRST_BONUS_INPUT, [2])
-        t.test("Test na prvni rozsireni #3", ["223"], FIRST_BONUS_INPUT, [2])
-        t.test("Test na prvni rozsireni #4", ["892"], FIRST_BONUS_INPUT, [])
-        t.test("Test na prvni rozsireni #4", ["659"], FIRST_BONUS_INPUT, [3])
+        t.test("Test na prvni rozsireni #1", ["-s", "222"], FIRST_BONUS_INPUT, [1])
+        t.test("Test na prvni rozsireni #2", ["-s", "221"], FIRST_BONUS_INPUT, [2])
+        t.test("Test na prvni rozsireni #3", ["-s", "223"], FIRST_BONUS_INPUT, [2])
+        t.test("Test na prvni rozsireni #4", ["-s", "892"], FIRST_BONUS_INPUT, [])
+        t.test("Test na prvni rozsireni #5", ["-s", "659"], FIRST_BONUS_INPUT, [3])
 
     if bonus_level == 2:
         t.test("Test na druhe rozsireni #1", ["62", "-l", "1"], SECOND_BONUS_INPUT, [1])
