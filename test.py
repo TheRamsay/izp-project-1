@@ -31,6 +31,7 @@ BASE_INPUT = [
     ("Bedrich Smetana ml.", "541141120"),
     ("xxx+a+xxxxx", "213344"),
     ("Karel Spacek", "+420213333333"),
+    ("aekaeeabbaeaebaeab", "892")
 ]
 
 TOO_LONG_INPUT_1 = [
@@ -55,8 +56,9 @@ MAX_CONTACTS_INPUT_2 = [(f"aa{i}aa", "25235453") for i in range(50)]
 
 FIRST_BONUS_INPUT = [
     ("xAxxxxBC", "123044312"),
-    ("xxxABDxx", "302329817"),
+    ("xxxABDxx", "3023296827"),
     ("xxOxxKxxOKxxxxZ", "00114322"),
+    ("xmxvxxkxmxjxmxxxvxxtxxxm", "90010008")
 ]
 
 SECOND_BONUS_INPUT = [
@@ -77,7 +79,7 @@ class Tester:
         test_name: str,
         args: List[str],
         input_: List[Tuple[str, str]],
-        expected_contacts: List[int],
+        expected_contacts: List[int] = None,
         should_fail: bool = False,
         check_crash: bool = False,
     ):
@@ -86,7 +88,11 @@ class Tester:
         error_msg: str = ""
 
         str_input = self.create_input(input_)
-        str_output = self.create_output(input_, expected_contacts)
+        str_output = (
+            self.create_output(input_, expected_contacts)
+            if expected_contacts is not None
+            else ""
+        )
 
         p: CompletedProcess[str]
 
@@ -244,44 +250,45 @@ if __name__ == "__main__":
 
     t.test("Test standardniho reseni #1", ["020"], BASE_INPUT, [4])
     t.test("Test standardniho reseni #2", ["0420"], BASE_INPUT, [5])
+    t.test("Test standardniho reseni #3", ["232"], BASE_INPUT, [6])
 
     t.test(
         "Test maximalniho poctu kontaktu #1",
-        [""],
+        [],
         MAX_CONTACTS_INPUT_1,
         [i for i in range(1, 43)],
     )
     t.test(
         "Test maximalniho poctu kontaktu #2",
-        [""],
-        MAX_CONTACTS_INPUT_2,
         [],
+        MAX_CONTACTS_INPUT_2,
         check_crash=True,
     )
 
-    t.test("Test na delku radku #1", [], TOO_LONG_INPUT_1, [], check_crash=True)
-    t.test("Test na delku radku #2", [], TOO_LONG_INPUT_2, [], check_crash=True)
+    t.test("Test na delku radku #1", [], TOO_LONG_INPUT_1, check_crash=True)
+    t.test("Test na delku radku #2", [], TOO_LONG_INPUT_2, check_crash=True)
 
     # TODO
     # t.test("Test na prazdny radek #1", [], BLANK_INPUT_1, [])
     # t.test("Test na prazdny radek #2", [], BLANK_INPUT_2, [])
 
-    t.test("Test argumentu #1", ["tf"], BASE_INPUT, [], should_fail=True)
-    t.test("Test argumentu #2", ["t00f"], BASE_INPUT, [], should_fail=True)
-    t.test("Test argumentu #3", ["1231", "ff", "pp"], BASE_INPUT, [], should_fail=True)
+    t.test("Test argumentu #1", ["tf"], BASE_INPUT, should_fail=True)
+    t.test("Test argumentu #2", ["t00f"], BASE_INPUT, should_fail=True)
+    t.test("Test argumentu #3", ["1231", "ff", "pp"], BASE_INPUT, should_fail=True)
 
     if bonus_level >= 1:
         t.test("Test na prvni rozsireni #1", ["-s", "222"], FIRST_BONUS_INPUT, [1])
-        t.test("Test na prvni rozsireni #2", ["-s", "221"], FIRST_BONUS_INPUT, [2])
+        t.test("Test na prvni rozsireni #2", ["-s", "226"], FIRST_BONUS_INPUT, [2])
         t.test("Test na prvni rozsireni #3", ["-s", "223"], FIRST_BONUS_INPUT, [2])
         t.test("Test na prvni rozsireni #4", ["-s", "892"], FIRST_BONUS_INPUT, [])
         t.test("Test na prvni rozsireni #5", ["-s", "659"], FIRST_BONUS_INPUT, [3])
+        t.test("Test na prvni rozsireni #6", ["-s", "688"], FIRST_BONUS_INPUT, [4])
+        t.test("Test na prvni rozsireni #7", ["-s", "981"], FIRST_BONUS_INPUT, [])
 
         t.test(
             "Test parametru -s #1",
             ["892", "-s"],
             FIRST_BONUS_INPUT,
-            [],
             should_fail=True,
         )
 
@@ -314,17 +321,15 @@ if __name__ == "__main__":
             "Test parametru -l #1",
             ["-l", "tf"],
             SECOND_BONUS_INPUT,
-            [],
             should_fail=True,
         )
         t.test(
             "Test parametru -l #2",
             ["-l", "t00f"],
             SECOND_BONUS_INPUT,
-            [],
             should_fail=True,
         )
-        t.test("Test parametru -l #3", ["-l"], SECOND_BONUS_INPUT, [], should_fail=True)
+        t.test("Test parametru -l #3", ["-l"], SECOND_BONUS_INPUT, should_fail=True)
         t.test("Test parametru -l #4", ["-l", "0", "662"], SECOND_BONUS_INPUT, [1])
 
     if args.save_logs:
