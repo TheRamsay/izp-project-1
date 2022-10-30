@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
     t = Tester(args.prog, bonus_level > 0)
 
-    t.test("Test ze zadani #1", [], BASE_INPUT, [1, 2, 3])
+    t.test("Test ze zadani #1", [], BASE_INPUT, [1, 2, 3, 4, 5])
     t.test("Test ze zadani #2", ["12"], BASE_INPUT, [1, 3])
     t.test("Test ze zadani #3", ["686"], BASE_INPUT, [2])
     t.test("Test ze zadani #4", ["38"], BASE_INPUT, [1, 3])
@@ -251,6 +251,7 @@ if __name__ == "__main__":
     t.test("Test standardniho reseni #1", ["020"], BASE_INPUT, [4])
     t.test("Test standardniho reseni #2", ["0420"], BASE_INPUT, [5])
     t.test("Test standardniho reseni #3", ["232"], BASE_INPUT, [6])
+    t.test("Test standardniho reseni #4", ["779"], BASE_INPUT, [2])
 
     t.test(
         "Test maximalniho poctu kontaktu #1",

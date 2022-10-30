@@ -2,11 +2,10 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 #define LINE_SIZE 102
-#define MAX_CONTACTS 50
-#define ERROR_MESSAGE_SIZE 100
 #define NOT_FOUND_MESSAGE "Not found"
 #define UNKNOWN_CHAR '-'
 #define INVALID_PATTERN "|"
@@ -14,7 +13,7 @@
 typedef struct Arguments {
     char pattern[LINE_SIZE];
     int error_threshold;
-    int contiguous_search;
+    bool contiguous_search;
 } Arguments;
 
 int min(int a, int b, int c) {
@@ -25,9 +24,14 @@ int min(int a, int b, int c) {
     return b < c ? b : c;
 }
 
+int raise_error(char *error_msg) {
+    fprintf(stderr, "%s\n", error_msg);
+    return EXIT_FAILURE;
+}
+
 // Calculates edit distance of two strings
 // source: https://en.wikipedia.org/wiki/Levenshtein_distance#Iterative_with_full_matrix
-size_t get_lev_distance(char *str1, char *str2) {
+int get_lev_distance(char *str1, char *str2) {
     size_t m = strlen(str1) + 1, n = strlen(str2) + 1;
 
     int matrix[m][n];
@@ -68,9 +72,9 @@ int is_non_contiguous_substring(char *str, char *substring) {
     return substring[j] == '\0';
 }
 
-int match_contact(char *pattern, char *contact_field, int contiguous, int error_threshold) {
+bool match_contact(char *pattern, char *contact_field, bool contiguous, int error_threshold) {
     if (*pattern == '\0') {
-        return 1;
+        return true;
     }
 
     if (error_threshold != -1) {
@@ -140,16 +144,14 @@ int parse_line(char *buf) {
     }
 
     if (strchr(buf, '\n') == NULL) {
-        fprintf(stderr, "Line is too long.\n");
-        return EXIT_FAILURE;
+        return raise_error("Line is too long.");
     }
 
     buf[strcspn(buf, "\n")] = '\0';
     str_to_lower(buf);
 
     if (strlen(buf) == 0) {
-        fprintf(stderr, "Empty line is not a valid entry.\n");
-        return EXIT_FAILURE;
+        return raise_error("Empty line is not a valid entry.");
     }
 
     return EXIT_SUCCESS;
@@ -159,10 +161,18 @@ int process_contacts(char *pattern, int contiguous, int error_threshold) {
     char name_buf[LINE_SIZE], phone_buf[LINE_SIZE], parsed_name[LINE_SIZE], parsed_phone[LINE_SIZE];
     int found_count = 0;
     int status_code = EXIT_SUCCESS;
+    int status;
 
-    for (int i = 0; i < MAX_CONTACTS; i++) {
-        status_code = parse_line(name_buf) == EXIT_FAILURE ? EXIT_FAILURE : EXIT_SUCCESS;
-        status_code = parse_line(phone_buf) == EXIT_FAILURE ? EXIT_FAILURE : EXIT_SUCCESS;
+    while (1) {
+        if ((status = parse_line(name_buf)) != EXIT_SUCCESS) {
+            status_code = status == EXIT_FAILURE ? EXIT_FAILURE : EXIT_SUCCESS;
+            break;
+        }
+
+        if ((status = parse_line(phone_buf)) != EXIT_SUCCESS) {
+            status_code = status == EXIT_FAILURE ? EXIT_FAILURE : EXIT_SUCCESS;
+            break;
+        }
 
         str_to_num_value(name_buf, parsed_name);
         str_to_num_value(phone_buf, parsed_phone);
@@ -181,100 +191,84 @@ int process_contacts(char *pattern, int contiguous, int error_threshold) {
     return status_code;
 }
 
-long parse_number(char *str, char error_msg[ERROR_MESSAGE_SIZE]) {
-    errno = 0;
-    char *ptr;
-    long error_threshold = strtol(str, &ptr, 10);
-
-    if (*ptr != '\0') {
-        strcpy(error_msg, "Value of argument has to be numerical.\n");
-        return 0;
+bool is_number(char *str) {
+    for (size_t i = 0; str[i] != '\0'; i++)
+    {
+        if (!isdigit(str[i])) {
+            return false;
+        }
     }
 
-    if (errno != 0) {
-        strcpy(error_msg, "Error while parsing number\n");
-        return 0;
-    }
-
-    return error_threshold;
+    return true;
 }
 
 int parse_arguments(char *argv[], size_t argc, Arguments *arguments) {
     arguments->error_threshold = -1;
-    arguments->contiguous_search = 1;
+    arguments->contiguous_search = true;
     arguments->pattern[0] = '\0';
 
-    int pattern_found = 0;
-    char error_msg[ERROR_MESSAGE_SIZE] = {0};
+    bool pattern_found = false;
 
     for (size_t i = 1; i < argc; i++) {
         switch (argv[i][0]) {
             case '-':
                 if (strlen(argv[i]) != 2) {
-                    fprintf(stderr, "Parameter is longer than expected.\n");
-                    return EXIT_FAILURE;
+                    return raise_error("Parameter is longer than expected.");
                 }
 
                 if (argv[i][1] == 's') {
                     if (i != 1) {
-                        fprintf(stderr, "Parameter -s has to be first.\n");
-                        return EXIT_FAILURE;
+                        return raise_error("Parameter -s has to be first.");
                     }
 
-                    arguments->contiguous_search = 0;
+                    arguments->contiguous_search = false;
                     break;
-                }
-                else if (argv[i][1] == 'l') {
+                } else if (argv[i][1] == 'l') {
                     if (i + 1 >= argc) {
-                        fprintf(stderr, "You have to specify value for -l parameter.\n");
-                        return EXIT_FAILURE;
+                        return raise_error("You have to specify a value for -l parameter.");
                     }
 
-                    int error_threshold = parse_number(argv[i + 1], error_msg);
-
-                    if (strlen(error_msg) > 0) {
-                        fprintf(stderr, error_msg);
-                        return EXIT_FAILURE;
+                    if (!is_number(argv[i + 1])) {
+                        return raise_error("Value of -l parameter has to be numerical.");
                     }
 
-                    arguments->error_threshold = error_threshold;
+                    // If value of -l is triple or more digit number, set it to 100 cuz max pattern length is 100
+                    if (strlen(argv[i + 1]) >= 3) {
+                        arguments->error_threshold = 100;
+                    } else {
+                        arguments->error_threshold = strtol(argv[i + 1], NULL, 10);
+                    }
+
                     i++;
                     break;
-                }
-                else {
-                    fprintf(stderr, "Unexptected parameter.\n");
-                    return EXIT_FAILURE;
+                } else {
+                    return raise_error("Unexpected parameter.");
                 }
 
             default:
+                // If pattern was already found raise error
                 if (pattern_found) {
-                    fprintf(stderr, "Unexptected parameter.\n");
-                    return EXIT_FAILURE;
+                    return raise_error("Unexpected parameter.");
                 }
 
                 // Handles empty argument ./t9search ""
                 if (argv[i][0] == '\0') {
-                    fprintf(stderr, "Pattern can't be empty sequence.\n");
-                    return EXIT_FAILURE;
+                    return raise_error("Pattern can't be empty sequence.");
                 }
 
-                parse_number(argv[i], error_msg);
-
-                if (strlen(error_msg) > 0) {
-                    fprintf(stderr, error_msg);
-                    return EXIT_FAILURE;
+                if (!is_number(argv[i])) {
+                    return raise_error("Argument has to be numerical.");
                 }
 
                 // If pattern is longer than line size, then we create invalid
                 // pattern so no contact is matched
                 if (strlen(argv[i]) > LINE_SIZE - 1) {
                     strcpy(arguments->pattern, INVALID_PATTERN);
-                }
-                else {
+                } else {
                     strcpy(arguments->pattern, argv[i]);
                 }
 
-                pattern_found = 1;
+                pattern_found = true;
                 break;
         }
     }
