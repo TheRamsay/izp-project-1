@@ -223,10 +223,10 @@ if __name__ == "__main__":
         "prog", metavar="P", type=str, help="Jmeno programu (napriklad: t9search)"
     )
     parser.add_argument(
-        "--no-logs",
+        "--save-logs",
         dest="save_logs",
         action="store_true",
-        help="Vypne ukladani logu do souboru",
+        help="Zapne ukladani logu do souboru",
     )
     parser.add_argument(
         "-b",
@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
     t = Tester(args.prog, bonus_level > 0)
 
-    t.test("Test ze zadani #1", [], BASE_INPUT, [1, 2, 3, 4, 5])
+    t.test("Test ze zadani #1", [], BASE_INPUT, [1, 2, 3, 4, 5, 6])
     t.test("Test ze zadani #2", ["12"], BASE_INPUT, [1, 3])
     t.test("Test ze zadani #3", ["686"], BASE_INPUT, [2])
     t.test("Test ze zadani #4", ["38"], BASE_INPUT, [1, 3])
@@ -278,11 +278,11 @@ if __name__ == "__main__":
     t.test("Test argumentu #3", ["1231", "ff", "pp"], BASE_INPUT, should_fail=True)
 
     if bonus_level >= 1:
-        t.test("Test na prvni rozsireni #1", ["-s", "222"], FIRST_BONUS_INPUT, [1])
+        t.test("Test na prvni rozsireni #1", ["-s", "222"], FIRST_BONUS_INPUT, [1, 2])
         t.test("Test na prvni rozsireni #2", ["-s", "226"], FIRST_BONUS_INPUT, [2])
         t.test("Test na prvni rozsireni #3", ["-s", "223"], FIRST_BONUS_INPUT, [2])
         t.test("Test na prvni rozsireni #4", ["-s", "892"], FIRST_BONUS_INPUT, [])
-        t.test("Test na prvni rozsireni #5", ["-s", "659"], FIRST_BONUS_INPUT, [3])
+        t.test("Test na prvni rozsireni #5", ["-s", "659"], FIRST_BONUS_INPUT, [3, 4])
         t.test("Test na prvni rozsireni #6", ["-s", "688"], FIRST_BONUS_INPUT, [4])
         t.test("Test na prvni rozsireni #7", ["-s", "981"], FIRST_BONUS_INPUT, [])
 

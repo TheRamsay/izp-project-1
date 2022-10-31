@@ -29,6 +29,27 @@ int raise_error(char *error_msg) {
     return EXIT_FAILURE;
 }
 
+int get_edit_distance(char *str1, char *str2) {
+    int min_err_count = __INT_MAX__;
+    for (size_t i = 0; str1[i] != '\0'; i++)
+    {
+        int err_count = 0;
+        for (size_t j = 0; str2[j] != '\0'; j++)
+        {
+            if (str1[i + j] != str2[j]) {
+                err_count += 1;
+            }
+        }
+
+        if (err_count < min_err_count) {
+            min_err_count = err_count;
+        }
+        
+    }
+    
+    return min_err_count;
+}
+
 // Calculates edit distance of two strings
 // source: https://en.wikipedia.org/wiki/Levenshtein_distance#Iterative_with_full_matrix
 int get_lev_distance(char *str1, char *str2) {
@@ -55,10 +76,10 @@ int get_lev_distance(char *str1, char *str2) {
         }
     }
 
-    return matrix[m - 1][n - 1];
+    return matrix[m][n];
 }
 
-int is_non_contiguous_substring(char *str, char *substring) {
+int non_contiguous_strstr(char *str, char *substring) {
     int i = 0, j = 0;
 
     while (str[i] != '\0' && substring[j] != '\0') {
@@ -78,14 +99,20 @@ bool match_contact(char *pattern, char *contact_field, bool contiguous, int erro
     }
 
     if (error_threshold != -1) {
+        // Search for contigous substring with some error threshold
+        if (contiguous) {
+            return error_threshold >= get_edit_distance(contact_field, pattern);
+        }
+
+        // Combination of -s and -l
+        // Using levenshtein distance for finding uncontiguous substring with allowed erorrs
+        // Substracting length difference of strings from edit distance, so we can ignore non pattern symbols 
         int lev_distance = get_lev_distance(contact_field, pattern);
 
-        // Substracting lengths difference of two strings from edit distance,
-        // because we dont want to count that in
         return error_threshold >= lev_distance - (int)(strlen(contact_field) - strlen(pattern));
     }
 
-    return contiguous ? strstr(contact_field, pattern) != NULL : is_non_contiguous_substring(contact_field, pattern);
+    return contiguous ? strstr(contact_field, pattern) != NULL : non_contiguous_strstr(contact_field, pattern);
 }
 
 void str_to_num_value(char *str, char *output) {
@@ -163,7 +190,7 @@ int process_contacts(char *pattern, int contiguous, int error_threshold) {
     int status_code = EXIT_SUCCESS;
     int status;
 
-    while (1) {
+    while (true) {
         if ((status = parse_line(name_buf)) != EXIT_SUCCESS) {
             status_code = status == EXIT_FAILURE ? EXIT_FAILURE : EXIT_SUCCESS;
             break;
@@ -177,14 +204,16 @@ int process_contacts(char *pattern, int contiguous, int error_threshold) {
         str_to_num_value(name_buf, parsed_name);
         str_to_num_value(phone_buf, parsed_phone);
 
-        if (match_contact(pattern, parsed_name, contiguous, error_threshold) ||
-            match_contact(pattern, parsed_phone, contiguous, error_threshold)) {
+        if (
+            match_contact(pattern, parsed_name, contiguous, error_threshold) ||
+            match_contact(pattern, parsed_phone, contiguous, error_threshold)
+        ) {
             found_count++;
             fprintf(stdout, "%s, %s\n", name_buf, phone_buf);
         }
     }
 
-    if (found_count == 0) {
+    if (status_code == EXIT_SUCCESS && found_count == 0) {
         fprintf(stdout, "%s\n", NOT_FOUND_MESSAGE);
     }
 
