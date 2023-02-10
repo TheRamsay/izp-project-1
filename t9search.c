@@ -1,3 +1,9 @@
+/**
+ * @name IZP Projekt 1 - Prace s textem
+ * @author Dominik Huml - xhumld00
+ * 2022
+ */
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
